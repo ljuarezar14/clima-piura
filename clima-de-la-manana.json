@@ -1,0 +1,268 @@
+{
+  "name": "Clima de la mañana",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Cada mañana a las 7",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "2",
+      "name": "Mi ciudad",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "ciudad",
+              "value": "Piura",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3",
+      "name": "Buscar coordenadas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "url": "https://geocoding-api.open-meteo.com/v1/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "name",
+              "value": "={{ $json.ciudad }}"
+            },
+            {
+              "name": "count",
+              "value": "1"
+            },
+            {
+              "name": "language",
+              "value": "es"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "4",
+      "name": "Obtener clima",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "url": "https://api.open-meteo.com/v1/forecast",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "latitude",
+              "value": "={{ $json.results[0].latitude }}"
+            },
+            {
+              "name": "longitude",
+              "value": "={{ $json.results[0].longitude }}"
+            },
+            {
+              "name": "current",
+              "value": "temperature_2m,apparent_temperature,weather_code,wind_speed_10m"
+            },
+            {
+              "name": "daily",
+              "value": "temperature_2m_max,temperature_2m_min,precipitation_probability_max"
+            },
+            {
+              "name": "timezone",
+              "value": "auto"
+            },
+            {
+              "name": "forecast_days",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "5",
+      "name": "Resumen del clima",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1",
+              "name": "ciudad",
+              "value": "={{ $('Mi ciudad').item.json.ciudad }}",
+              "type": "string"
+            },
+            {
+              "id": "b2",
+              "name": "temperatura_actual",
+              "value": "={{ $json.current.temperature_2m }}",
+              "type": "number"
+            },
+            {
+              "id": "b3",
+              "name": "sensacion_termica",
+              "value": "={{ $json.current.apparent_temperature }}",
+              "type": "number"
+            },
+            {
+              "id": "b4",
+              "name": "maxima",
+              "value": "={{ $json.daily.temperature_2m_max[0] }}",
+              "type": "number"
+            },
+            {
+              "id": "b5",
+              "name": "minima",
+              "value": "={{ $json.daily.temperature_2m_min[0] }}",
+              "type": "number"
+            },
+            {
+              "id": "b6",
+              "name": "prob_lluvia",
+              "value": "={{ $json.daily.precipitation_probability_max[0] }}",
+              "type": "number"
+            },
+            {
+              "id": "b7",
+              "name": "viento_kmh",
+              "value": "={{ $json.current.wind_speed_10m }}",
+              "type": "number"
+            },
+            {
+              "id": "b8",
+              "name": "mensaje",
+              "value": "=Buenos días. En {{ $('Mi ciudad').item.json.ciudad }} hace {{ $json.current.temperature_2m }}°C (sensación {{ $json.current.apparent_temperature }}°C). Hoy: mín {{ $json.daily.temperature_2m_min[0] }}°C, máx {{ $json.daily.temperature_2m_max[0] }}°C, {{ $json.daily.precipitation_probability_max[0] }}% de probabilidad de lluvia.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "6",
+      "name": "Enviar por Gmail",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "fromEmail": "tu-correo@gmail.com",
+        "toEmail": "tu-correo@gmail.com",
+        "subject": "={{ '☀️ Clima en ' + $json.ciudad + ': ' + $json.minima + '–' + $json.maxima + '°C' }}",
+        "emailFormat": "text",
+        "text": "={{ $json.mensaje }}",
+        "options": {
+          "appendAttribution": false
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cada mañana a las 7": {
+      "main": [
+        [
+          {
+            "node": "Mi ciudad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mi ciudad": {
+      "main": [
+        [
+          {
+            "node": "Buscar coordenadas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar coordenadas": {
+      "main": [
+        [
+          {
+            "node": "Obtener clima",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener clima": {
+      "main": [
+        [
+          {
+            "node": "Resumen del clima",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resumen del clima": {
+      "main": [
+        [
+          {
+            "node": "Enviar por Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Lima"
+  }
+}
